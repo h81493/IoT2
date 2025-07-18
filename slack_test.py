@@ -1,7 +1,12 @@
+# slack_test.py
 import urequests
 import ujson
 import network
 import time
+import sys
+if "user" in sys.modules: # userモジュールのキャッシュを削除
+    del sys.modules["user"]
+import user
 
 class SlackAPI:
     def __init__(self, token):
@@ -9,13 +14,12 @@ class SlackAPI:
         self.base_url = "https://slack.com/api"
         self.headers = {
             "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json; charset=utf-8"
         }
     
     def send_message(self, channel, text, thread_ts=None):
         """チャンネルにメッセージを送信"""
         url = f"{self.base_url}/chat.postMessage"
-        
         payload = {
             "channel": channel,
             "text": text
@@ -25,6 +29,8 @@ class SlackAPI:
             payload["thread_ts"] = thread_ts
         
         try:
+            del self.headers['Connection']
+            del self.headers['Host']
             response = urequests.post(
                 url, 
                 headers=self.headers,
@@ -53,7 +59,6 @@ class SlackAPI:
             response = urequests.get(url, headers=self.headers)
             result = ujson.loads(response.text)
             response.close()
-            
             if result.get("ok"):
                 channels = result.get("channels", [])
                 for channel in channels:
@@ -89,18 +94,62 @@ def connect_wifi(ssid, password):
     else:
         print(f"既にWiFi接続済み: {wlan.ifconfig()}")
         return wlan
+def emoji():
+#絵文字をランダムに１文字選ぶ。
+    import random
+    emj=[]
+    #http://www.asahi-net.or.jp/~ax2s-kmtn/ref/unicode/u1f300.html
+    emj.append(range(0x1f32d,0x1f3fa))#205
+    emj.append(range(0x1f400,0x1f440))#64
+    emj.append(range(0x1f451,0x1f489))#56
+    emj.append(range(0x1f4a0,0x1f4ff))#95
+    emj.append(range(0x1f5fb,0x1f600))#5
+    el_sum=sum(map(len, emj))
+    rand=random.choice(range(0,el_sum))
+    em=0
+    n=0
+    for i in map(len,emj):
+        if rand<i+em: break
+        n=n+1
+        em=em+i
+    return chr(emj[n][rand-em])
+def current_time():
+#現地時刻を返す。
+    tstamp=time.time()
+    #time_diff = 9 * 60 * 60    # 日本の時差
+    time_diff = 0
+    t=time.localtime(tstamp+time_diff)[0:6]
+    time_str = '{:02d}/{:02d}/{:02d} {:02d}:{:02d}:{:02d}'\
+           .format(t[0],t[1],t[2],t[3],t[4],t[5])
+    return(time_str)
+def percent_encoding(s):
+#URLパーセントエンコードする。
+    ret=''
+    for i in s:
+        code=ord(i)
+        if (code>= ord('0') and code <= ord('9')) or \
+          (code>= ord('A') and code <= ord('Z')) or \
+          (code>= ord('a') and code <= ord('z')) or \
+          code==ord('-') or code==ord('.') or \
+          code==ord('_') or code==ord('~'): 
+            ret=ret+i
+        else:
+            if code<=0x7f:
+                ret=ret+('%{:02x}'.format(code).upper())
+                #":/?#[]@!$&'()*+,;=%"
+            else:
+                b=i.encode('utf-8')
+                for j in b:
+                    ret=ret+'%{:02x}'.format(j).upper()
+    return ret
 
 def main():
     # ===== 設定値を更新してください =====
-    # 例：
-    # WIFI_SSID = ""                    # あなたのWiFi名
-    # WIFI_PASSWORD = ""             # あなたのWiFiパスワード
-    # SLACK_TOKEN = ""  # 実際のBot Token
-    
-    WIFI_SSID = ""              # 実際のWiFi名に変更
-    WIFI_PASSWORD = ""      # 実際のWiFiパスワードに変更
-    SLACK_TOKEN = ""  # 実際のBot Tokenに変更
-    
+    WIFI_SSID = user.ssid
+    WIFI_PASSWORD = user.pswd
+    SLACK_TOKEN = user.slack
+    network.hostname(user.espName())
+
     print("=== MicroPython Slack API テスト ===")
     
     try:
@@ -121,7 +170,9 @@ def main():
             print(f"チャンネル #test のID: {channel_id}")
             
             # メッセージ送信
-            message = "Hello from MicroPython! 🐍"
+            #message = "Hello from MicroPython :snake:"
+            message = percent_encoding('ESP32 SLACK API てすと ﾃｽﾄ  {:s} from {:s} {:s} at {:s}'\
+               .format(emoji(),user.gid,user.espName(),current_time()))
             print(f"\nメッセージを送信中: {message}")
             result = slack.send_message(channel_id, message)
             
@@ -161,12 +212,11 @@ def test_connection():
 
 # 実行例
 if __name__ == "__main__":
+    
     # 設定値が正しく設定されているかチェック
-    if "your_wifi_ssid" in ["your_wifi_ssid", "your_wifi_password", "xoxb-your-bot-token-here"]:
+    if user.slack in ["xoxb-your-bot-token-here"]:
         print("⚠️  設定値を実際の値に変更してください:")
-        print("   - WIFI_SSID: 実際のWiFi名")
-        print("   - WIFI_PASSWORD: 実際のWiFiパスワード")
-        print("   - SLACK_TOKEN: 実際のBot Token")
+        print("   - slack: 実際のBot Token")
         print("\n設定後、main()を実行してください")
     else:
         # 設定済みの場合は自動実行

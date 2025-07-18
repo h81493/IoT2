@@ -10,6 +10,9 @@ MicroPython Slack API Client
 - Slack APIを使用したメッセージ送信
 - チャンネル名からチャンネルIDの取得
 - 接続状態の確認とテスト機能
+- URLパーセントエンコーディング機能
+- ランダム絵文字生成機能
+- 現地時刻表示機能
 
 【対応プラットフォーム】
 - ESP32
@@ -20,9 +23,10 @@ MicroPython Slack API Client
 1. WiFi接続情報 (SSID/パスワード)
 2. Slack Bot Token (xoxb-で始まるトークン)
 3. 送信先チャンネル名
+4. userモジュール（設定情報を含む）
 
 【使用方法】
-1. 設定値を実際の値に変更
+1. userモジュールに設定値を定義
 2. main()関数を実行してメッセージ送信
 3. test_connection()で接続テスト
 
@@ -37,10 +41,11 @@ MicroPython Slack API Client
   - メッセージ内容の改善
   - ホスト名設定機能追加
   - エラーハンドリング改善
+- 2025/07/18: 設定値チェック強化 (Claude)
+  - user.slackが未定義・空文字・Noneの場合もエラー検出するように改善
 
 作成者: Claude (Anthropic)
 修正者: hal
-
 """
 import urequests
 import ujson
@@ -267,7 +272,7 @@ def test_connection():
 if __name__ == "__main__":
     
     # 設定値が正しく設定されているかチェック
-    if user.slack in ["xoxb-your-bot-token-here"]:
+    if not hasattr(user, 'slack') or not user.slack or user.slack in ["xoxb-your-bot-token-here", ""]:
         print("⚠️  設定値を実際の値に変更してください:")
         print("   - slack: 実際のBot Token")
         print("\n設定後、main()を実行してください")

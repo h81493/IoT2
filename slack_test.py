@@ -44,6 +44,7 @@ MicroPython Slack API Client
 - 2025/07/18: 設定値チェック強化 (Claude)
   - user.slackが未定義・空文字・Noneの場合もエラー検出するように改善
 - 2025/07/18: コメント追加 (Claude)
+- 2025/07/22: タイムアウト修正 10秒⇒ 30秒 (hal)
 
 作成者: Claude (Anthropic)
 修正者: hal
@@ -209,7 +210,7 @@ def connect_wifi(ssid, password):
         print("WiFiに接続中...")
         wlan.connect(ssid, password)
         
-        timeout = 10  # 10秒でタイムアウト
+        timeout = 30  # 30秒でタイムアウト
         while not wlan.isconnected() and timeout > 0:
             time.sleep(1)
             timeout -= 1
